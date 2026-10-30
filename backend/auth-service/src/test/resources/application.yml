@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:auth;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  cloud:
+    discovery:
+      enabled: false
+eureka.client.enabled: false
+app.jwt.secret: test-secret-that-is-at-least-thirty-two-bytes-long
+app.jwt.expiration-ms: 3600000

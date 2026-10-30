@@ -1,0 +1,29 @@
+server:
+  port: ${MEDICAL_RECORDS_SERVICE_PORT:8085}
+spring:
+  application:
+    name: medical-records-service
+  datasource:
+    url: ${MEDICAL_RECORDS_DB_URL:jdbc:postgresql://localhost:5432/medflow_medical_records}
+    username: ${MEDICAL_RECORDS_DB_USER:medflow_medical_records}
+    password: ${MEDICAL_RECORDS_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+app:
+  jwt:
+    secret: ${JWT_SECRET}

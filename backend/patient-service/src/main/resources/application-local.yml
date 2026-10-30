@@ -1,0 +1,8 @@
+# Opt in only when Eureka, Gateway, and services all run on this host.
+# Do not activate this profile in containers or on multiple machines.
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
+    ip-address: 127.0.0.1
+    instance-id: ${spring.application.name}:${server.port}

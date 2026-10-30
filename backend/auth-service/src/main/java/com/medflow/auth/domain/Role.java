@@ -1,0 +1,2 @@
+package com.medflow.auth.domain;
+public enum Role { PATIENT, DOCTOR, NURSE, RECEPTIONIST, LAB_STAFF, PHARMACIST, BILLING_STAFF, EMERGENCY_STAFF, ADMIN }

@@ -1,0 +1,29 @@
+server:
+  port: ${DOCTOR_SERVICE_PORT:8083}
+spring:
+  application:
+    name: doctor-service
+  datasource:
+    url: ${DOCTOR_DB_URL:jdbc:postgresql://localhost:5432/medflow_doctor}
+    username: ${DOCTOR_DB_USER:medflow_doctor}
+    password: ${DOCTOR_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+app:
+  jwt:
+    secret: ${JWT_SECRET}

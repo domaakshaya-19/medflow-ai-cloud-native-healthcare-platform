@@ -1,0 +1,34 @@
+.env
+*.env
+!.env.example
+
+target/
+node_modules/
+dist/
+coverage/
+tmp/
+cache/
+
+.m2/
+.m2repo/
+.npm-cache/
+
+.idea/
+.vscode/
+*.iml
+
+*.log
+.DS_Store
+Thumbs.db
+
+# Accidental local files
+/cp.txt
+/-Headers
+
+# Local password-hashing test files
+/BCryptHash.java
+/BCryptHash.class
+
+# Generated classpath files
+**/cp.txt
+**/auth-cp.txt

@@ -1,0 +1,69 @@
+services:
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: medflow_auth
+      POSTGRES_USER: ${AUTH_DB_USER:-medflow_auth}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in .env}
+    volumes: [auth-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  discovery-server:
+    build: {context: ., dockerfile: backend/discovery-server/Dockerfile}
+    ports: ["8761:8761"]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://localhost:8761/actuator/health]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  auth-service:
+    build: {context: ., dockerfile: backend/auth-service/Dockerfile}
+    ports: ["8081:8081"]
+    environment:
+      AUTH_DB_URL: jdbc:postgresql://auth-db:5432/medflow_auth
+      AUTH_DB_USER: ${AUTH_DB_USER:-medflow_auth}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set a JWT_SECRET of at least 32 bytes in .env}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka
+    depends_on:
+      auth-db: {condition: service_healthy}
+      discovery-server: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://localhost:8081/actuator/health]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  api-gateway:
+    build: {context: ., dockerfile: backend/api-gateway/Dockerfile}
+    ports: ["8080:8080"]
+    environment:
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      auth-service: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://localhost:8080/actuator/health]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  frontend:
+    build:
+      context: frontend
+      args:
+        VITE_API_URL: http://localhost:8080
+    ports:
+      - "5173:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+volumes:
+  auth-db-data:
