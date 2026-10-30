@@ -10,6 +10,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
+    long countByStatus(com.medflow.appointment.entity.AppointmentStatus status);
+    long countByAppointmentDate(LocalDate date);
+    boolean existsByPatientIdAndAppointmentDateAndAppointmentTimeAndStatusNotIn(UUID patientId,LocalDate date,LocalTime time,java.util.Collection<com.medflow.appointment.entity.AppointmentStatus> excluded);
+    boolean existsByPatientIdAndAppointmentDateAndAppointmentTimeAndStatusNotInAndIdNot(UUID patientId,LocalDate date,LocalTime time,java.util.Collection<com.medflow.appointment.entity.AppointmentStatus> excluded,UUID id);
+    boolean existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNotIn(UUID doctorId,LocalDate date,LocalTime time,java.util.Collection<com.medflow.appointment.entity.AppointmentStatus> excluded);
+    boolean existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNotInAndIdNot(UUID doctorId,LocalDate date,LocalTime time,java.util.Collection<com.medflow.appointment.entity.AppointmentStatus> excluded,UUID id);
     List<Appointment> findByPatientIdOrderByAppointmentDateAscAppointmentTimeAsc(UUID patientId);
     List<Appointment> findByDoctorIdOrderByAppointmentDateAscQueueNumberAsc(UUID doctorId);
     List<Appointment> findByDoctorIdAndAppointmentDateOrderByQueueNumberAsc(UUID doctorId, LocalDate date);

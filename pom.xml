@@ -9,7 +9,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.5</version>
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -30,15 +30,33 @@
         <module>backend/medical-records-service</module>
         <module>backend/lab-service</module>
         <module>backend/prescription-service</module>
+        <module>backend/ai-service</module>
+        <module>backend/pharmacy-service</module>
+        <module>backend/nutrition-service</module>
+        <module>backend/billing-service</module>
+        <module>backend/emergency-service</module>
+        <module>backend/notification-service</module>
     </modules>
 
     <properties>
+        <medflow.build.directory>target</medflow.build.directory>
         <java.version>21</java.version>
-        <spring-cloud.version>2024.0.1</spring-cloud.version>
+        <spring-cloud.version>2025.0.3</spring-cloud.version>
+        <jackson-bom.version>2.21.8</jackson-bom.version>
+        <netty.version>4.1.139.Final</netty.version>
+        <tomcat.version>10.1.61</tomcat.version>
+        <postgresql.version>42.7.14</postgresql.version>
+        <httpcore5.version>5.4.4</httpcore5.version>
+        <freemarker.version>2.3.35</freemarker.version>
     </properties>
+    <build><directory>${medflow.build.directory}</directory></build>
 
     <dependencyManagement>
         <dependencies>
+            <dependency><groupId>com.google.guava</groupId><artifactId>guava</artifactId><version>33.7.2-jre</version></dependency>
+            <dependency><groupId>org.bouncycastle</groupId><artifactId>bcprov-jdk18on</artifactId><version>1.86</version></dependency>
+            <dependency><groupId>org.bouncycastle</groupId><artifactId>bcpkix-jdk18on</artifactId><version>1.86</version></dependency>
+            <dependency><groupId>org.bouncycastle</groupId><artifactId>bcutil-jdk18on</artifactId><version>1.86</version></dependency>
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>

@@ -22,7 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    private static final Set<String> ROLES = Set.of("PATIENT", "DOCTOR", "ADMIN");
+    private static final Set<String> ROLES = Set.of("PATIENT", "DOCTOR", "PHARMACIST", "ADMIN");
     private final SecretKey key;
 
     public JwtAuthenticationFilter(@Value("${app.jwt.secret}") String secret) {

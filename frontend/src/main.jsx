@@ -1,2 +1,3 @@
+import ErrorBoundary from './components/ErrorBoundary';
 import React from 'react';import{createRoot}from'react-dom/client';import{BrowserRouter}from'react-router-dom';import{AuthProvider}from'./context/AuthContext';import{PatientProfileProvider}from'./context/PatientProfileContext';import App from'./App';import'./styles.css';import'./app-shell.css';import'./patient-profile.css';import'./doctor-directory.css';import'./appointments.css';
-createRoot(document.getElementById('root')).render(<React.StrictMode><BrowserRouter><AuthProvider><PatientProfileProvider><App/></PatientProfileProvider></AuthProvider></BrowserRouter></React.StrictMode>);
+createRoot(document.getElementById('root')).render(<React.StrictMode><ErrorBoundary><BrowserRouter><AuthProvider><PatientProfileProvider><App/></PatientProfileProvider></AuthProvider></BrowserRouter></ErrorBoundary></React.StrictMode>);

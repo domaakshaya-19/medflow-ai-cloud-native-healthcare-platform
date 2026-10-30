@@ -1,6 +1,7 @@
 import { api } from '../api';
 
 export const appointmentsApi = {
+  availability: (doctorId,date) => api.get('/api/appointments/availability',{params:{doctorId,date}}).then(({data})=>data),
   create: (appointment) => api.post('/api/appointments', appointment).then(({ data }) => data),
   mine: () => api.get('/api/appointments/me').then(({ data }) => data),
   doctorMine: () => api.get('/api/appointments/doctor/me').then(({ data }) => data),

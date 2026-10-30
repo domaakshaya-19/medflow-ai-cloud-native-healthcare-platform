@@ -47,6 +47,7 @@ class AppointmentApiTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
+    @Test void receptionAndNursingSeeOnlyAggregates()throws Exception{for(String role:new String[]{"NURSE","RECEPTIONIST"}){String header=token(role,UUID.randomUUID());mvc.perform(get("/api/appointments/operations/summary").header("Authorization",header)).andExpect(status().isOk()).andExpect(jsonPath("$.totalAppointments").exists()).andExpect(jsonPath("$.patientId").doesNotExist());mvc.perform(get("/api/appointments").header("Authorization",header)).andExpect(status().isForbidden());}mvc.perform(get("/api/appointments/operations/summary").header("Authorization",token("PATIENT",UUID.randomUUID()))).andExpect(status().isForbidden());}
     private String token(String role, UUID user) {
         Instant now = Instant.now();
         return "Bearer " + Jwts.builder().subject(user.toString()).claim("email", "synthetic@example.test")

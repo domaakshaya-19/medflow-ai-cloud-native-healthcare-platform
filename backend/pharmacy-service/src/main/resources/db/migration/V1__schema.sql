@@ -1,0 +1,2 @@
+CREATE TABLE medications(id UUID PRIMARY KEY,name VARCHAR(250) NOT NULL UNIQUE,stock INTEGER NOT NULL CHECK(stock>=0),unit VARCHAR(40) NOT NULL);
+CREATE TABLE dispensations(id UUID PRIMARY KEY,prescription_id UUID NOT NULL,patient_id UUID NOT NULL,medication_id UUID NOT NULL REFERENCES medications(id),quantity INTEGER NOT NULL CHECK(quantity>0),dispensed_by UUID NOT NULL,created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE(prescription_id,medication_id));

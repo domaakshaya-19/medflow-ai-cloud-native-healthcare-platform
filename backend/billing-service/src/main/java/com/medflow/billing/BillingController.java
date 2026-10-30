@@ -1,0 +1,18 @@
+package com.medflow.billing;
+import jakarta.validation.Valid;import jakarta.validation.constraints.*;import java.math.BigDecimal;import java.util.*;
+import org.springframework.security.core.Authentication;import org.springframework.transaction.annotation.Transactional;import org.springframework.web.bind.annotation.*;import org.springframework.web.server.ResponseStatusException;import static org.springframework.http.HttpStatus.*;
+@RestController @RequestMapping("/api/billing") public class BillingController {
+ private final Access access;public BillingController(Access access){this.access=access;}
+ public record Item(@NotBlank @Size(max=200)String description,@Min(1) @Max(1000)int quantity,@NotNull @DecimalMin("0.01") @Digits(integer=7,fraction=2)BigDecimal unitPrice){}
+ public record Invoice(@NotNull UUID patientUserId,@NotBlank @Pattern(regexp="INR|USD")String currency,@NotEmpty @Size(max=20)List<@Valid Item> items){}
+ public record Confirmation(boolean confirmed){}
+ @PostMapping("/invoices") @ResponseStatus(CREATED) @Transactional public Map<String,Object> create(@Valid @RequestBody Invoice r,Authentication a,@RequestHeader("Authorization")String bearer){
+  access.roles(a,"BILLING_STAFF","ADMIN");var patient=access.remote("/api/auth/patient-reference/"+r.patientUserId(),bearer);if(!patient.path("id").asText().equals(r.patientUserId().toString()))throw new ResponseStatusException(BAD_GATEWAY,"Invalid patient reference");
+  BigDecimal total=r.items().stream().map(i->i.unitPrice().multiply(BigDecimal.valueOf(i.quantity()))).reduce(BigDecimal.ZERO,BigDecimal::add);if(total.compareTo(new BigDecimal("9999999999.99"))>0)throw new ResponseStatusException(BAD_REQUEST,"Invoice exceeds allowed total");
+  UUID id=UUID.randomUUID();access.db.update("INSERT INTO invoices(id,owner_user_id,currency,total,payment_status,created_by) VALUES(?,?,?,?,?,?)",id,r.patientUserId(),r.currency(),total,"UNPAID",access.subject(a));for(Item i:r.items())access.db.update("INSERT INTO invoice_items(id,invoice_id,description,quantity,unit_price) VALUES(?,?,?,?,?)",UUID.randomUUID(),id,i.description(),i.quantity(),i.unitPrice());return detail(id,a);
+ }
+ @GetMapping("/me") public List<Map<String,Object>> mine(Authentication a){access.roles(a,"PATIENT");return access.rows("SELECT * FROM invoices WHERE owner_user_id=? ORDER BY created_at DESC LIMIT 100",access.subject(a));}
+ @GetMapping("/invoices") public List<Map<String,Object>> all(Authentication a){access.roles(a,"BILLING_STAFF","ADMIN");return access.rows("SELECT * FROM invoices ORDER BY created_at DESC LIMIT 100");}
+ @GetMapping("/invoices/{id}") public Map<String,Object> detail(@PathVariable UUID id,Authentication a){var row=access.one("SELECT * FROM invoices WHERE id=?",id);access.owner(a,row.get("ownerUserId"),"BILLING_STAFF","ADMIN");row.put("items",access.rows("SELECT description,quantity,unit_price FROM invoice_items WHERE invoice_id=?",id));row.put("syntheticOnly",true);return row;}
+ @PostMapping("/invoices/{id}/demo-payment") @Transactional public Map<String,Object> pay(@PathVariable UUID id,@RequestBody Confirmation r,Authentication a){access.roles(a,"PATIENT","BILLING_STAFF","ADMIN");detail(id,a);if(!r.confirmed())throw new ResponseStatusException(BAD_REQUEST,"Explicit synthetic payment confirmation required");if(access.db.update("UPDATE invoices SET payment_status='PAID_DEMO' WHERE id=? AND payment_status='UNPAID'",id)!=1)throw new ResponseStatusException(CONFLICT,"Invoice already paid in the synthetic demo");access.db.update("INSERT INTO demo_payments(id,invoice_id,confirmed_by) VALUES(?,?,?)",UUID.randomUUID(),id,access.subject(a));return detail(id,a);}
+}

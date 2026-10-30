@@ -3,12 +3,20 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const navigation = [
+  { to:'/pharmacy',label:'Pharmacy',icon:'✚',roles:['PATIENT','DOCTOR','PHARMACIST','ADMIN'] },
+  { to:'/nutrition',label:'Nutrition & wellness',icon:'♧',roles:['PATIENT','DOCTOR','ADMIN'] },
+  { to:'/billing',label:'Billing',icon:'▤',roles:['PATIENT','BILLING_STAFF','ADMIN'] },
+  { to:'/emergency',label:'Emergency requests',icon:'!',roles:['PATIENT','EMERGENCY_STAFF','ADMIN'] },
+  { to:'/notifications',label:'Notifications',icon:'◉',roles:['PATIENT','DOCTOR','NURSE','RECEPTIONIST','LAB_STAFF','PHARMACIST','BILLING_STAFF','EMERGENCY_STAFF','ADMIN'] },
+  { to: '/assistant', label: 'AI assistant', icon: '◇', roles: ['PATIENT','DOCTOR','NURSE','RECEPTIONIST','LAB_STAFF','PHARMACIST','BILLING_STAFF','EMERGENCY_STAFF','ADMIN'] },
+  { to: '/doctor/profile', label: 'My professional profile', icon: '✚', roles: ['DOCTOR'] },
+  { to: '/admin/staff', label: 'Staff accounts', icon: '♙', roles: ['ADMIN'] },
   { to: '/dashboard', label: 'Overview', icon: '⌂', roles: ['PATIENT', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'LAB_STAFF', 'PHARMACIST', 'BILLING_STAFF', 'EMERGENCY_STAFF', 'ADMIN'] },
   { to: '/patients', label: 'Patients', icon: '♙', roles: ['PATIENT', 'ADMIN'] },
   { to: '/doctors', label: 'Doctors', icon: '✚', roles: ['PATIENT', 'DOCTOR', 'ADMIN'] },
   { to: '/appointments', label: 'Appointments', icon: '□', roles: ['PATIENT', 'DOCTOR', 'ADMIN'] },
   { to: '/medical-records', label: 'Medical records', icon: '▤', roles: ['PATIENT', 'DOCTOR', 'ADMIN'] },
-  { to: '/laboratory', label: 'Laboratory', icon: '◈', roles: ['PATIENT', 'DOCTOR', 'ADMIN'] },
+  { to: '/laboratory', label: 'Laboratory', icon: '◈', roles: ['PATIENT', 'DOCTOR', 'LAB_STAFF', 'ADMIN'] },
   { to: '/prescriptions', label: 'Prescriptions', icon: '✎', roles: ['PATIENT', 'DOCTOR', 'ADMIN'] },
 ];
 

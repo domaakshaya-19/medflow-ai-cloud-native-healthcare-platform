@@ -46,6 +46,8 @@ public class PrescriptionController {
     }
 
     @GetMapping("/me")
+    // A pharmacist gets only a dedicated dispensing projection, never unrestricted clinical history.
+    // Existing /me and resource ownership checks below remain unchanged.
     List<PrescriptionResponse> me(Authentication authentication,
                                   @RequestHeader("Authorization") String authorization) {
         if (hasRole(authentication, "PATIENT"))
@@ -54,6 +56,13 @@ public class PrescriptionController {
             return prescriptions.doctor(references.doctorProfileForCurrentUser(subject(authentication), authorization));
         if (hasRole(authentication, "ADMIN")) return prescriptions.all();
         throw forbidden();
+    }
+
+    @GetMapping("/dispensing/{id}")
+    java.util.Map<String,Object> dispensing(@PathVariable UUID id,Authentication authentication){
+        requireAny(authentication,"PHARMACIST","ADMIN");
+        var p=prescriptions.get(id);
+        return java.util.Map.of("id",p.id(),"patientId",p.patientId(),"status",p.status(),"medicines",p.medicines());
     }
 
     @GetMapping("/patient/me")

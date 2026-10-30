@@ -1,0 +1,2 @@
+package com.medflow.pharmacy;
+@org.springframework.boot.autoconfigure.SpringBootApplication @org.springframework.scheduling.annotation.EnableScheduling public class Application { public static void main(String[] args){org.springframework.boot.SpringApplication.run(Application.class,args);} }

@@ -1,0 +1,24 @@
+{
+  "title": "MedFlow service availability (requires configured metrics)",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Scrape availability",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"medflow-actuator-example\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    }
+  ]
+}

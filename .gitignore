@@ -3,6 +3,7 @@
 !.env.example
 
 target/
+target-build-*/
 node_modules/
 dist/
 coverage/
@@ -24,6 +25,8 @@ Thumbs.db
 # Accidental local files
 /cp.txt
 /-Headers
+/local-runtime/
+/frontend-audit.json
 
 # Local password-hashing test files
 /BCryptHash.java

@@ -1,0 +1,35 @@
+{
+  "global": {
+    "scrape_interval": "30s"
+  },
+  "scrape_configs": [
+    {
+      "job_name": "medflow-actuator-example",
+      "metrics_path": "/actuator/prometheus",
+      "authorization": {
+        "credentials_file": "/run/secrets/metrics-token"
+      },
+      "static_configs": [
+        {
+          "targets": [
+            "discovery-server:8761",
+            "auth-service:8081",
+            "patient-service:8082",
+            "doctor-service:8083",
+            "appointment-service:8084",
+            "medical-records-service:8085",
+            "lab-service:8086",
+            "prescription-service:8087",
+            "pharmacy-service:8088",
+            "nutrition-service:8089",
+            "billing-service:8090",
+            "emergency-service:8091",
+            "notification-service:8092",
+            "ai-service:8093",
+            "api-gateway:8080"
+          ]
+        }
+      ]
+    }
+  ]
+}

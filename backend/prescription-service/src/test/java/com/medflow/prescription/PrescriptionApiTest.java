@@ -172,6 +172,7 @@ class PrescriptionApiTest {
                 .andExpect(status().is(status.value())).andExpect(jsonPath("$.message").value(message));
     }
 
+    @Test void pharmacistGetsOnlyDispensingProjectionAndCannotReadClinicalRecord()throws Exception{Prescription p=saved(patientId,doctorId);String header=token(UUID.randomUUID(),"PHARMACIST");mvc.perform(get("/api/prescriptions/dispensing/"+p.id).header("Authorization",header)).andExpect(status().isOk()).andExpect(jsonPath("$.medicines").isArray()).andExpect(jsonPath("$.diagnosis").doesNotExist()).andExpect(jsonPath("$.notes").doesNotExist());mvc.perform(get("/api/prescriptions/"+p.id).header("Authorization",header)).andExpect(status().isForbidden());mvc.perform(post("/api/prescriptions").header("Authorization",header).contentType(MediaType.APPLICATION_JSON).content(createJson(patientId,doctorId,UUID.randomUUID()))).andExpect(status().isForbidden());}
     private Prescription saved(UUID patient, UUID doctor) {
         Prescription p = new Prescription(); p.patientId = patient; p.doctorId = doctor;
         p.appointmentId = UUID.randomUUID(); p.prescriptionDate = LocalDate.now(); p.diagnosis = "Viral fever"; p.status = PrescriptionStatus.ACTIVE;

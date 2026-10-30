@@ -1,0 +1,2 @@
+CREATE TABLE notification_preferences(owner_user_id UUID PRIMARY KEY,enabled BOOLEAN NOT NULL,reminders BOOLEAN NOT NULL);
+CREATE TABLE notifications(id UUID PRIMARY KEY,owner_user_id UUID NOT NULL,appointment_id UUID NOT NULL,kind VARCHAR(30) NOT NULL,message VARCHAR(500) NOT NULL,delivery_status VARCHAR(30) NOT NULL,due_at TIMESTAMP WITH TIME ZONE NOT NULL,is_read BOOLEAN NOT NULL DEFAULT FALSE,created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE(owner_user_id,appointment_id,kind));

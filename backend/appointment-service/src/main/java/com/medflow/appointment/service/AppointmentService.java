@@ -19,16 +19,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class AppointmentService {
     private final AppointmentRepository repository;
     private final DoctorReferenceService doctorReferences;
+    private final com.medflow.appointment.repository.DoctorBookingLockRepository locks;
+    private final com.medflow.appointment.repository.PatientBookingLockRepository patientLocks;
+    private final jakarta.persistence.EntityManager entityManager;
 
-    public AppointmentService(AppointmentRepository repository, DoctorReferenceService doctorReferences) {
+    public AppointmentService(AppointmentRepository repository, DoctorReferenceService doctorReferences,com.medflow.appointment.repository.DoctorBookingLockRepository locks,com.medflow.appointment.repository.PatientBookingLockRepository patientLocks,jakarta.persistence.EntityManager entityManager) {
         this.repository = repository;
         this.doctorReferences = doctorReferences;
+        this.locks=locks;this.patientLocks=patientLocks;this.entityManager=entityManager;
     }
 
     @Transactional
     public AppointmentResponse create(UUID patientId, AppointmentCreateRequest request, String authorization) {
         requireFuture(request.appointmentDate(), request.appointmentTime());
         doctorReferences.requireDoctor(request.doctorId(), authorization);
+        lockDoctor(request.doctorId());
+        lockPatient(patientId);
+        if(repository.existsByPatientIdAndAppointmentDateAndAppointmentTimeAndStatusNotIn(patientId,request.appointmentDate(),request.appointmentTime(),List.of(AppointmentStatus.CANCELLED,AppointmentStatus.NO_SHOW)))throw new ApiException(HttpStatus.CONFLICT,"Patient already has an appointment at this start time");
+        if(repository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNotIn(request.doctorId(),request.appointmentDate(),request.appointmentTime(),List.of(AppointmentStatus.CANCELLED,AppointmentStatus.NO_SHOW)))
+            throw new ApiException(HttpStatus.CONFLICT,"Doctor already has an appointment at this start time");
         if (repository.existsByPatientIdAndDoctorIdAndAppointmentDateAndAppointmentTime(
                 patientId, request.doctorId(), request.appointmentDate(), request.appointmentTime()))
             throw new ApiException(HttpStatus.CONFLICT, "Duplicate appointment booking");
@@ -79,6 +88,7 @@ public class AppointmentService {
     @Transactional
     public AppointmentResponse update(UUID id, AppointmentUpdateRequest request, String role) {
         Appointment a = appointment(id);
+        lockDoctor(a.doctorId);lockPatient(a.patientId);entityManager.refresh(a);
         if ("PATIENT".equals(role)) {
             if (request.status() != null)
                 throw new ApiException(HttpStatus.FORBIDDEN, "Patients cannot set appointment status");
@@ -97,12 +107,16 @@ public class AppointmentService {
             updateDetails(a, request);
             if (request.status() != null) a.status = request.status();
         }
+        if(a.status!=AppointmentStatus.CANCELLED&&a.status!=AppointmentStatus.NO_SHOW&&repository.existsByDoctorIdAndAppointmentDateAndAppointmentTimeAndStatusNotInAndIdNot(a.doctorId,a.appointmentDate,a.appointmentTime,List.of(AppointmentStatus.CANCELLED,AppointmentStatus.NO_SHOW),a.id))
+            throw new ApiException(HttpStatus.CONFLICT,"Doctor already has an appointment at this start time");
+        if(a.status!=AppointmentStatus.CANCELLED&&a.status!=AppointmentStatus.NO_SHOW&&repository.existsByPatientIdAndAppointmentDateAndAppointmentTimeAndStatusNotInAndIdNot(a.patientId,a.appointmentDate,a.appointmentTime,List.of(AppointmentStatus.CANCELLED,AppointmentStatus.NO_SHOW),a.id))throw new ApiException(HttpStatus.CONFLICT,"Patient already has an appointment at this start time");
         return view(repository.saveAndFlush(a));
     }
 
     @Transactional
     public void cancel(UUID id, String role) {
         Appointment a = appointment(id);
+        lockDoctor(a.doctorId);lockPatient(a.patientId);entityManager.refresh(a);
         if (a.status == AppointmentStatus.CANCELLED)
             throw new ApiException(HttpStatus.CONFLICT, "Appointment is already cancelled");
         if ("PATIENT".equals(role) && a.status != AppointmentStatus.SCHEDULED
@@ -133,6 +147,26 @@ public class AppointmentService {
             a.reason = request.reason().trim();
         }
         if (request.notes() != null) a.notes = request.notes();
+    }
+
+    private void lockDoctor(UUID doctorId){
+        if(locks.lock(doctorId).isEmpty()){
+            try{locks.saveAndFlush(new com.medflow.appointment.entity.DoctorBookingLock(doctorId));}
+            catch(org.springframework.dao.DataIntegrityViolationException e){throw new ApiException(HttpStatus.CONFLICT,"Concurrent booking initialization; retry with fresh availability");}
+        }
+    }
+    private void lockPatient(UUID patientId){
+        if(patientLocks.lock(patientId).isEmpty())try{patientLocks.saveAndFlush(new com.medflow.appointment.entity.PatientBookingLock(patientId));}catch(org.springframework.dao.DataIntegrityViolationException e){throw new ApiException(HttpStatus.CONFLICT,"Concurrent patient booking initialization; retry");}
+    }
+
+    @Transactional(readOnly=true)
+    public java.util.Map<String,Object> availability(UUID doctorId,LocalDate date,String authorization){
+        if(date.isBefore(LocalDate.now()))throw new ApiException(HttpStatus.BAD_REQUEST,"Availability date must not be in the past");
+        doctorReferences.requireDoctor(doctorId,authorization);
+        var occupied=repository.findByDoctorIdAndAppointmentDateOrderByQueueNumberAsc(doctorId,date).stream().filter(a->a.status!=AppointmentStatus.CANCELLED&&a.status!=AppointmentStatus.NO_SHOW).map(a->a.appointmentTime).collect(java.util.stream.Collectors.toSet());
+        var times=new java.util.ArrayList<String>();
+        for(int i=0;i<48;i++){LocalTime time=LocalTime.of(i/2,(i%2)*30);if(LocalDateTime.of(date,time).isAfter(LocalDateTime.now())&&!occupied.contains(time))times.add(time.toString());}
+        return java.util.Map.of("doctorId",doctorId,"date",date,"availableStartTimes",times,"gridMinutes",30,"workingHoursConfigured",false,"limitation","Unoccupied start times on a 30-minute grid, not a clinician roster. Durations and working hours are not modeled. Booking rechecks conflicts transactionally.");
     }
 
     private static void requireFuture(LocalDate date, LocalTime time) {

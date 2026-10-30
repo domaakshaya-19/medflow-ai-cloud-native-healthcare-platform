@@ -1,10 +1,13 @@
 name: CI
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: {persist-credentials: false}
       - uses: actions/setup-java@v4
         with: {distribution: temurin, java-version: '21', cache: maven}
       - run: mvn --batch-mode clean verify
@@ -14,3 +17,15 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+      - run: npm test
+        working-directory: frontend
+      - run: npm audit --audit-level=high
+        working-directory: frontend
+      - run: python scripts/check_secrets.py
+      - run: python scripts/validate_deployment.py
+      - name: Validate Kubernetes schemas without a cluster
+        run: docker run --rm -v "$PWD/deploy/k8s:/manifests:ro" ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary -kubernetes-version 1.35.0 /manifests/resources.json
+      - name: Backend dependency inventory
+        run: mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -DoutputDirectory=local-runtime/security -DincludeTestScope=false -DoutputReactorProjects=false
+      - name: Backend vulnerability gate
+        run: docker run --rm -v "$PWD/local-runtime/security:/work" aquasec/trivy:0.76.1 sbom --severity HIGH,CRITICAL --exit-code 1 --format json --output /work/backend-trivy.json /work/bom.json

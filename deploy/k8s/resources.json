@@ -1,0 +1,4537 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "medflow-demo"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "database-init",
+        "namespace": "medflow-demo"
+      },
+      "data": {
+        "01-app-role.sh": "#!/bin/sh\nset -eu\n# Runs only when an isolated new container volume is initialized; never against native PostgreSQL.\ncase \"$APP_DB_USER\" in medflow_auth|medflow_patient|medflow_doctor|medflow_appointment|medflow_medical_records|medflow_lab|medflow_prescription|medflow_pharmacy|medflow_nutrition|medflow_billing|medflow_emergency|medflow_notification) ;; *) exit 1;; esac\n[ \"$POSTGRES_DB\" = \"$APP_DB_USER\" ] || exit 1\npassword=$(cat \"$APP_DB_PASSWORD_FILE\")\n# Quote SQL data safely. Nothing is echoed or passed as a command argument.\nescaped=$(printf '%s' \"$password\" | sed \"s/'/''/g\")\npsql -v ON_ERROR_STOP=1 --username \"$POSTGRES_USER\" --dbname \"$POSTGRES_DB\" <<SQL\nSET log_statement='none';\nSET standard_conforming_strings=on;\nSET log_duration=off;\nSET log_min_duration_statement=-1;\nSET log_min_error_statement='panic';\nCREATE ROLE $APP_DB_USER LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '$escaped';\nALTER DATABASE $POSTGRES_DB OWNER TO $APP_DB_USER;\nSQL\nunset password escaped\n"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "auth-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "auth-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "auth-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "auth-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "auth-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "auth-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_auth"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_auth"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_auth"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-auth-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "patient-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "patient-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "patient-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "patient-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "patient-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "patient-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_patient"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_patient"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_patient"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-patient-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "doctor-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "doctor-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "doctor-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "doctor-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "doctor-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "doctor-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_doctor"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_doctor"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_doctor"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-doctor-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "appointment-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "appointment-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "appointment-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "appointment-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "appointment-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "appointment-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_appointment"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_appointment"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_appointment"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-appointment-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "medical-records-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "medical-records-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "medical-records-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "medical-records-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "medical-records-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "medical-records-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_medical_records"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_medical_records"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_medical_records"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-medical-records-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "lab-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "lab-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "lab-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "lab-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "lab-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "lab-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_lab"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_lab"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_lab"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-lab-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "prescription-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "prescription-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "prescription-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "prescription-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "prescription-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "prescription-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_prescription"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_prescription"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_prescription"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-prescription-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "pharmacy-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "pharmacy-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "pharmacy-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "pharmacy-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "pharmacy-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "pharmacy-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_pharmacy"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_pharmacy"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_pharmacy"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-pharmacy-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "nutrition-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "nutrition-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "nutrition-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "nutrition-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "nutrition-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "nutrition-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_nutrition"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_nutrition"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_nutrition"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-nutrition-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "billing-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "billing-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "billing-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "billing-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "billing-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "billing-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_billing"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_billing"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_billing"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-billing-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "emergency-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "emergency-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "emergency-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "emergency-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "emergency-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "emergency-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_emergency"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_emergency"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_emergency"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-emergency-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "notification-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "notification-db"
+        },
+        "ports": [
+          {
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "StatefulSet",
+      "metadata": {
+        "name": "notification-db",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "serviceName": "notification-db",
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "notification-db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "notification-db"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "postgres:16-alpine",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "POSTGRES_USER",
+                    "value": "postgres"
+                  },
+                  {
+                    "name": "POSTGRES_DB",
+                    "value": "medflow_notification"
+                  },
+                  {
+                    "name": "POSTGRES_PASSWORD_FILE",
+                    "value": "/run/secrets/admin-password"
+                  },
+                  {
+                    "name": "APP_DB_USER",
+                    "value": "medflow_notification"
+                  },
+                  {
+                    "name": "APP_DB_PASSWORD_FILE",
+                    "value": "/run/secrets/app-password"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/var/lib/postgresql/data"
+                  },
+                  {
+                    "name": "credentials",
+                    "mountPath": "/run/secrets",
+                    "readOnly": true
+                  },
+                  {
+                    "name": "init",
+                    "mountPath": "/docker-entrypoint-initdb.d",
+                    "readOnly": true
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "128Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "384Mi",
+                    "cpu": "500m"
+                  }
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "pg_isready",
+                      "-U",
+                      "postgres",
+                      "-d",
+                      "medflow_notification"
+                    ]
+                  },
+                  "periodSeconds": 5
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "credentials",
+                "secret": {
+                  "secretName": "medflow-notification-credentials"
+                }
+              },
+              {
+                "name": "init",
+                "configMap": {
+                  "name": "database-init"
+                }
+              }
+            ]
+          }
+        },
+        "volumeClaimTemplates": [
+          {
+            "metadata": {
+              "name": "data"
+            },
+            "spec": {
+              "accessModes": [
+                "ReadWriteOnce"
+              ],
+              "resources": {
+                "requests": {
+                  "storage": "2Gi"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "discovery-server",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "discovery-server"
+        },
+        "ports": [
+          {
+            "port": 8761,
+            "targetPort": 8761
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "discovery-server",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "discovery-server"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "discovery-server"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "discovery-server",
+                "image": "ghcr.io/your-org/medflow-discovery-server:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8761
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8761"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8761
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8761
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8761
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "auth-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "auth-service"
+        },
+        "ports": [
+          {
+            "port": 8081,
+            "targetPort": 8081
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "auth-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "auth-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "auth-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "auth-service",
+                "image": "ghcr.io/your-org/medflow-auth-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8081
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8081"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "AUTH_DB_URL",
+                    "value": "jdbc:postgresql://auth-db:5432/medflow_auth"
+                  },
+                  {
+                    "name": "AUTH_DB_USER",
+                    "value": "medflow_auth"
+                  },
+                  {
+                    "name": "AUTH_SERVICE_PORT",
+                    "value": "8081"
+                  },
+                  {
+                    "name": "ADMIN_BOOTSTRAP_EMAIL",
+                    "value": "admin@example.test"
+                  },
+                  {
+                    "name": "AUTH_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-auth-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  },
+                  {
+                    "name": "ADMIN_BOOTSTRAP_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "bootstrap-password"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8081
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8081
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8081
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "patient-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "patient-service"
+        },
+        "ports": [
+          {
+            "port": 8082,
+            "targetPort": 8082
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "patient-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "patient-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "patient-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "patient-service",
+                "image": "ghcr.io/your-org/medflow-patient-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8082
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8082"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "PATIENT_DB_URL",
+                    "value": "jdbc:postgresql://patient-db:5432/medflow_patient"
+                  },
+                  {
+                    "name": "PATIENT_DB_USER",
+                    "value": "medflow_patient"
+                  },
+                  {
+                    "name": "PATIENT_SERVICE_PORT",
+                    "value": "8082"
+                  },
+                  {
+                    "name": "PATIENT_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-patient-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8082
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8082
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8082
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "doctor-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "doctor-service"
+        },
+        "ports": [
+          {
+            "port": 8083,
+            "targetPort": 8083
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "doctor-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "doctor-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "doctor-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "doctor-service",
+                "image": "ghcr.io/your-org/medflow-doctor-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8083
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8083"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "DOCTOR_DB_URL",
+                    "value": "jdbc:postgresql://doctor-db:5432/medflow_doctor"
+                  },
+                  {
+                    "name": "DOCTOR_DB_USER",
+                    "value": "medflow_doctor"
+                  },
+                  {
+                    "name": "DOCTOR_SERVICE_PORT",
+                    "value": "8083"
+                  },
+                  {
+                    "name": "DOCTOR_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-doctor-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8083
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8083
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8083
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "appointment-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "appointment-service"
+        },
+        "ports": [
+          {
+            "port": 8084,
+            "targetPort": 8084
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "appointment-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "appointment-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "appointment-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "appointment-service",
+                "image": "ghcr.io/your-org/medflow-appointment-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8084
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8084"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "APPOINTMENT_DB_URL",
+                    "value": "jdbc:postgresql://appointment-db:5432/medflow_appointment"
+                  },
+                  {
+                    "name": "APPOINTMENT_DB_USER",
+                    "value": "medflow_appointment"
+                  },
+                  {
+                    "name": "APPOINTMENT_SERVICE_PORT",
+                    "value": "8084"
+                  },
+                  {
+                    "name": "APPOINTMENT_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-appointment-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8084
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8084
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8084
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "medical-records-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "medical-records-service"
+        },
+        "ports": [
+          {
+            "port": 8085,
+            "targetPort": 8085
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "medical-records-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "medical-records-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "medical-records-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "medical-records-service",
+                "image": "ghcr.io/your-org/medflow-medical-records-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8085
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8085"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "MEDICAL_RECORDS_DB_URL",
+                    "value": "jdbc:postgresql://medical-records-db:5432/medflow_medical_records"
+                  },
+                  {
+                    "name": "MEDICAL_RECORDS_DB_USER",
+                    "value": "medflow_medical_records"
+                  },
+                  {
+                    "name": "MEDICAL_RECORDS_SERVICE_PORT",
+                    "value": "8085"
+                  },
+                  {
+                    "name": "MEDICAL_RECORDS_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-medical-records-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8085
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8085
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8085
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "lab-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "lab-service"
+        },
+        "ports": [
+          {
+            "port": 8086,
+            "targetPort": 8086
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "lab-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "lab-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "lab-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "lab-service",
+                "image": "ghcr.io/your-org/medflow-lab-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8086
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8086"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "LAB_DB_URL",
+                    "value": "jdbc:postgresql://lab-db:5432/medflow_lab"
+                  },
+                  {
+                    "name": "LAB_DB_USER",
+                    "value": "medflow_lab"
+                  },
+                  {
+                    "name": "LAB_SERVICE_PORT",
+                    "value": "8086"
+                  },
+                  {
+                    "name": "LAB_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-lab-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8086
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8086
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8086
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "prescription-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "prescription-service"
+        },
+        "ports": [
+          {
+            "port": 8087,
+            "targetPort": 8087
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "prescription-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "prescription-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "prescription-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "prescription-service",
+                "image": "ghcr.io/your-org/medflow-prescription-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8087
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8087"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "PRESCRIPTION_DB_URL",
+                    "value": "jdbc:postgresql://prescription-db:5432/medflow_prescription"
+                  },
+                  {
+                    "name": "PRESCRIPTION_DB_USER",
+                    "value": "medflow_prescription"
+                  },
+                  {
+                    "name": "PRESCRIPTION_SERVICE_PORT",
+                    "value": "8087"
+                  },
+                  {
+                    "name": "PRESCRIPTION_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-prescription-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8087
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8087
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8087
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "pharmacy-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "pharmacy-service"
+        },
+        "ports": [
+          {
+            "port": 8088,
+            "targetPort": 8088
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "pharmacy-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "pharmacy-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "pharmacy-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "pharmacy-service",
+                "image": "ghcr.io/your-org/medflow-pharmacy-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8088
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8088"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "PHARMACY_DB_URL",
+                    "value": "jdbc:postgresql://pharmacy-db:5432/medflow_pharmacy"
+                  },
+                  {
+                    "name": "PHARMACY_DB_USER",
+                    "value": "medflow_pharmacy"
+                  },
+                  {
+                    "name": "PHARMACY_SERVICE_PORT",
+                    "value": "8088"
+                  },
+                  {
+                    "name": "PHARMACY_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-pharmacy-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8088
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8088
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8088
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "nutrition-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "nutrition-service"
+        },
+        "ports": [
+          {
+            "port": 8089,
+            "targetPort": 8089
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "nutrition-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "nutrition-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "nutrition-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "nutrition-service",
+                "image": "ghcr.io/your-org/medflow-nutrition-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8089
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8089"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "NUTRITION_DB_URL",
+                    "value": "jdbc:postgresql://nutrition-db:5432/medflow_nutrition"
+                  },
+                  {
+                    "name": "NUTRITION_DB_USER",
+                    "value": "medflow_nutrition"
+                  },
+                  {
+                    "name": "NUTRITION_SERVICE_PORT",
+                    "value": "8089"
+                  },
+                  {
+                    "name": "NUTRITION_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-nutrition-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8089
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8089
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8089
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "billing-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "billing-service"
+        },
+        "ports": [
+          {
+            "port": 8090,
+            "targetPort": 8090
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "billing-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "billing-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "billing-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "billing-service",
+                "image": "ghcr.io/your-org/medflow-billing-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8090
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8090"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "BILLING_DB_URL",
+                    "value": "jdbc:postgresql://billing-db:5432/medflow_billing"
+                  },
+                  {
+                    "name": "BILLING_DB_USER",
+                    "value": "medflow_billing"
+                  },
+                  {
+                    "name": "BILLING_SERVICE_PORT",
+                    "value": "8090"
+                  },
+                  {
+                    "name": "BILLING_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-billing-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8090
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8090
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8090
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "emergency-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "emergency-service"
+        },
+        "ports": [
+          {
+            "port": 8091,
+            "targetPort": 8091
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "emergency-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "emergency-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "emergency-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "emergency-service",
+                "image": "ghcr.io/your-org/medflow-emergency-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8091
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8091"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "EMERGENCY_DB_URL",
+                    "value": "jdbc:postgresql://emergency-db:5432/medflow_emergency"
+                  },
+                  {
+                    "name": "EMERGENCY_DB_USER",
+                    "value": "medflow_emergency"
+                  },
+                  {
+                    "name": "EMERGENCY_SERVICE_PORT",
+                    "value": "8091"
+                  },
+                  {
+                    "name": "EMERGENCY_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-emergency-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8091
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8091
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8091
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "notification-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "notification-service"
+        },
+        "ports": [
+          {
+            "port": 8092,
+            "targetPort": 8092
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "notification-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "notification-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "notification-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "notification-service",
+                "image": "ghcr.io/your-org/medflow-notification-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8092
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8092"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "NOTIFICATION_DB_URL",
+                    "value": "jdbc:postgresql://notification-db:5432/medflow_notification"
+                  },
+                  {
+                    "name": "NOTIFICATION_DB_USER",
+                    "value": "medflow_notification"
+                  },
+                  {
+                    "name": "NOTIFICATION_SERVICE_PORT",
+                    "value": "8092"
+                  },
+                  {
+                    "name": "NOTIFICATION_DB_PASSWORD",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-notification-credentials",
+                        "key": "app-password"
+                      }
+                    }
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8092
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8092
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8092
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "ai-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "ai-service"
+        },
+        "ports": [
+          {
+            "port": 8093,
+            "targetPort": 8093
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "ai-service",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "ai-service"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ai-service"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "ai-service",
+                "image": "ghcr.io/your-org/medflow-ai-service:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8093
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8093"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  },
+                  {
+                    "name": "JWT_SECRET",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-signing",
+                        "key": "JWT_SECRET"
+                      }
+                    }
+                  },
+                  {
+                    "name": "GEMINI_API_KEY",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "name": "medflow-provider",
+                        "key": "GEMINI_API_KEY",
+                        "optional": true
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8093
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8093
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8093
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "api-gateway",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "api-gateway"
+        },
+        "ports": [
+          {
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "api-gateway",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "api-gateway"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "api-gateway"
+            }
+          },
+          "spec": {
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "runAsGroup": 10001
+            },
+            "containers": [
+              {
+                "name": "api-gateway",
+                "image": "ghcr.io/your-org/medflow-api-gateway:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 8080
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SERVER_PORT",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "EUREKA_SERVER_URL",
+                    "value": "http://discovery-server:8761/eureka"
+                  },
+                  {
+                    "name": "EUREKA_INSTANCE_PREFER_IP_ADDRESS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "API_GATEWAY_URL",
+                    "value": "http://api-gateway:8080"
+                  },
+                  {
+                    "name": "FRONTEND_URL",
+                    "value": "https://medflow.example.test"
+                  },
+                  {
+                    "name": "JAVA_TOOL_OPTIONS",
+                    "value": "-Xms64m -Xmx256m"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE",
+                    "value": "4"
+                  },
+                  {
+                    "name": "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE",
+                    "value": "1"
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "256Mi",
+                    "cpu": "100m"
+                  },
+                  "limits": {
+                    "memory": "512Mi",
+                    "cpu": "1000m"
+                  }
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8080
+                  },
+                  "failureThreshold": 36,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/readiness",
+                    "port": 8080
+                  },
+                  "periodSeconds": 5,
+                  "timeoutSeconds": 3
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/actuator/health/liveness",
+                    "port": 8080
+                  },
+                  "periodSeconds": 15,
+                  "timeoutSeconds": 3
+                },
+                "securityContext": {
+                  "allowPrivilegeEscalation": false,
+                  "readOnlyRootFilesystem": true,
+                  "capabilities": {
+                    "drop": [
+                      "ALL"
+                    ]
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "frontend",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "selector": {
+          "app": "frontend"
+        },
+        "ports": [
+          {
+            "port": 80,
+            "targetPort": 80
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "frontend",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "frontend"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "frontend"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "frontend",
+                "image": "ghcr.io/your-org/medflow-frontend:reviewed-sha-required",
+                "ports": [
+                  {
+                    "containerPort": 80
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "memory": "32Mi",
+                    "cpu": "50m"
+                  },
+                  "limits": {
+                    "memory": "128Mi",
+                    "cpu": "250m"
+                  }
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/health",
+                    "port": 80
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "Ingress",
+      "metadata": {
+        "name": "medflow",
+        "namespace": "medflow-demo"
+      },
+      "spec": {
+        "tls": [
+          {
+            "hosts": [
+              "medflow.example.test"
+            ],
+            "secretName": "medflow-tls"
+          }
+        ],
+        "rules": [
+          {
+            "host": "medflow.example.test",
+            "http": {
+              "paths": [
+                {
+                  "path": "/api",
+                  "pathType": "Prefix",
+                  "backend": {
+                    "service": {
+                      "name": "api-gateway",
+                      "port": {
+                        "number": 8080
+                      }
+                    }
+                  }
+                },
+                {
+                  "path": "/",
+                  "pathType": "Prefix",
+                  "backend": {
+                    "service": {
+                      "name": "frontend",
+                      "port": {
+                        "number": 80
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

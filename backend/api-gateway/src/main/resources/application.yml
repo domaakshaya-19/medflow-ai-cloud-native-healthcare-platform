@@ -43,6 +43,31 @@ spring:
           predicates:
             - Path=/api/prescriptions/**
 
+        - id: ai-service
+          uri: lb://ai-service
+          predicates:
+            - Path=/api/ai/**
+        - id: pharmacy-service
+          uri: lb://pharmacy-service
+          predicates:
+            - Path=/api/pharmacy/**
+        - id: nutrition-service
+          uri: lb://nutrition-service
+          predicates:
+            - Path=/api/nutrition/**
+        - id: billing-service
+          uri: lb://billing-service
+          predicates:
+            - Path=/api/billing/**
+        - id: emergency-service
+          uri: lb://emergency-service
+          predicates:
+            - Path=/api/emergency/**
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+
       globalcors:
         cors-configurations:
           '[/**]':

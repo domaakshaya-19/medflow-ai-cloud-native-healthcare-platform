@@ -5,6 +5,7 @@ import { laboratoryApi } from '../api/laboratory';
 import { medicalRecordsApi } from '../api/medicalRecords';
 import { patientsApi } from '../api/patients';
 import { prescriptionsApi } from '../api/prescriptions';
+import { business } from '../api/business';
 import ErrorAlert from '../components/ui/ErrorAlert';
 import LoadingState from '../components/ui/LoadingState';
 import { useAuth } from '../context/AuthContext';
@@ -35,9 +36,14 @@ export default function Dashboard() {
     {state.loading ? <LoadingState label="Loading your healthcare summary…" /> : <><div className="notice-stack">{state.notices.map((notice) => <ErrorAlert key={notice} message={notice} />)}</div>
       <section><div className="section-heading"><h2>Live summary</h2><button className="text-button" onClick={load}>Refresh</button></div>
         {state.cards.length ? <div className="metric-grid">{state.cards.map((card) => <article className="metric-card" key={card.key}><span>{card.label}</span><strong>{card.value}</strong><small>{card.description}</small></article>)}</div>
-          : <p className="muted">No clinical service returned dashboard data.</p>}</section></>}</>;
+          : <p className="muted">{['PATIENT','DOCTOR','ADMIN'].includes(user.role) ? 'No clinical service returned dashboard data.' : 'Your account is active. Specialized workflows for this role are available only when their authorized services are implemented; no clinical access is inferred from staff status.'}</p>}</section></>}</>;
 }
 function dashboardRequests(role) {
+  if (['NURSE','RECEPTIONIST'].includes(role)) return [{key:'operations',label:'Appointments today',request:()=>business.get('/api/appointments/operations/summary'),value:r=>r.todayAppointments,description:'Authorized aggregate only'},list('notifications','Notifications',()=>business.get('/api/notifications'),'Your in-app messages')];
+  if (role==='LAB_STAFF') return [list('orders','Lab orders',laboratoryApi.orders,'Authorized laboratory worklist'),list('results','Lab results',laboratoryApi.results,'Recorded laboratory results')];
+  if (role==='PHARMACIST') return [list('catalog','Catalog medications',()=>business.get('/api/pharmacy/medications'),'Inventory catalog'),list('dispensations','Dispensations',()=>business.get('/api/pharmacy/dispensations'),'Recorded dispensing activity')];
+  if (role==='BILLING_STAFF') return [list('invoices','Invoices',()=>business.get('/api/billing/invoices'),'Authorized synthetic billing records')];
+  if (role==='EMERGENCY_STAFF') return [list('requests','Administrative requests',()=>business.get('/api/emergency'),'Not clinical triage or dispatch')];
   if (role === 'PATIENT') return [profile('profile','Patient profile',patientsApi.me,'Your required Patient Profile has not been created yet.'),list('appointments','Appointments',appointmentsApi.mine,'Your appointments'),list('records','Medical records',medicalRecordsApi.mine,'Authorized records'),list('lab-orders','Lab orders',laboratoryApi.myOrders,'Orders visible to you'),list('lab-results','Lab results',laboratoryApi.myResults,'Results available'),list('prescriptions','Prescriptions',prescriptionsApi.patientMine,'Prescriptions visible to you')];
   if (role === 'DOCTOR') return [profile('profile','Doctor profile',doctorsApi.me,'Your Doctor Profile has not been created yet.'),list('appointments','Appointments',appointmentsApi.doctorMine,'Assigned appointments'),list('queue','Today’s queue',appointmentsApi.doctorQueue,'Active queue entries'),list('records','Medical records',medicalRecordsApi.doctorMine,'Records under your care'),list('lab-orders','Lab orders',laboratoryApi.orders,'Orders under your care'),list('prescriptions','Prescriptions',prescriptionsApi.doctorMine,'Prescriptions authored')];
   if (role === 'ADMIN') return [list('patients','Patients',patientsApi.list,'Registered patient profiles'),list('doctors','Doctors',doctorsApi.list,'Registered doctor profiles'),list('appointments','Appointments',appointmentsApi.list,'All appointments'),list('records','Medical records',medicalRecordsApi.doctorMine,'All medical records'),list('lab-orders','Lab orders',laboratoryApi.orders,'All laboratory orders'),list('prescriptions','Prescriptions',prescriptionsApi.list,'All prescriptions')];

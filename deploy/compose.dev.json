@@ -1,0 +1,1269 @@
+{
+  "name": "medflow-demo-isolated",
+  "services": {
+    "auth-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_auth",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_auth",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "auth-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "auth-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "auth-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_auth"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "patient-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_patient",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_patient",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "patient-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "patient-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "patient-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_patient"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "doctor-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_doctor",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_doctor",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "doctor-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "doctor-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "doctor-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_doctor"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "appointment-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_appointment",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_appointment",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "appointment-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "appointment-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "appointment-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_appointment"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "medical-records-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_medical_records",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_medical_records",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "medical_records-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "medical_records-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "medical_records-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_medical_records"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "lab-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_lab",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_lab",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "lab-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "lab-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "lab-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_lab"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "prescription-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_prescription",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_prescription",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "prescription-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "prescription-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "prescription-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_prescription"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "pharmacy-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_pharmacy",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_pharmacy",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "pharmacy-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "pharmacy-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "pharmacy-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_pharmacy"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "nutrition-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_nutrition",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_nutrition",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "nutrition-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "nutrition-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "nutrition-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_nutrition"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "billing-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_billing",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_billing",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "billing-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "billing-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "billing-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_billing"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "emergency-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_emergency",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_emergency",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "emergency-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "emergency-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "emergency-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_emergency"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "notification-db": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_DB": "medflow_notification",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/admin-password",
+        "APP_DB_USER": "medflow_notification",
+        "APP_DB_PASSWORD_FILE": "/run/secrets/app-password"
+      },
+      "secrets": [
+        {
+          "source": "notification-admin",
+          "target": "admin-password"
+        },
+        {
+          "source": "notification-app",
+          "target": "app-password"
+        }
+      ],
+      "volumes": [
+        "notification-data:/var/lib/postgresql/data",
+        "./init-app-role.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d medflow_notification"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      }
+    },
+    "discovery-server": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "discovery-server"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8761",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1"
+      },
+      "secrets": [],
+      "depends_on": {},
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      },
+      "ports": [
+        "127.0.0.1:18761:8761"
+      ]
+    },
+    "auth-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "auth-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8081",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "AUTH_DB_URL": "jdbc:postgresql://auth-db:5432/medflow_auth",
+        "AUTH_DB_USER": "medflow_auth",
+        "AUTH_SERVICE_PORT": "8081",
+        "ADMIN_BOOTSTRAP_EMAIL": "admin@example.test"
+      },
+      "secrets": [
+        {
+          "source": "auth-app",
+          "target": "AUTH_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        },
+        {
+          "source": "bootstrap",
+          "target": "ADMIN_BOOTSTRAP_PASSWORD"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "auth-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "patient-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "patient-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8082",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "PATIENT_DB_URL": "jdbc:postgresql://patient-db:5432/medflow_patient",
+        "PATIENT_DB_USER": "medflow_patient",
+        "PATIENT_SERVICE_PORT": "8082"
+      },
+      "secrets": [
+        {
+          "source": "patient-app",
+          "target": "PATIENT_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "patient-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "doctor-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "doctor-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8083",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "DOCTOR_DB_URL": "jdbc:postgresql://doctor-db:5432/medflow_doctor",
+        "DOCTOR_DB_USER": "medflow_doctor",
+        "DOCTOR_SERVICE_PORT": "8083"
+      },
+      "secrets": [
+        {
+          "source": "doctor-app",
+          "target": "DOCTOR_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "doctor-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "appointment-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "appointment-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8084",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "APPOINTMENT_DB_URL": "jdbc:postgresql://appointment-db:5432/medflow_appointment",
+        "APPOINTMENT_DB_USER": "medflow_appointment",
+        "APPOINTMENT_SERVICE_PORT": "8084"
+      },
+      "secrets": [
+        {
+          "source": "appointment-app",
+          "target": "APPOINTMENT_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "appointment-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "medical-records-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "medical-records-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8085",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "MEDICAL_RECORDS_DB_URL": "jdbc:postgresql://medical-records-db:5432/medflow_medical_records",
+        "MEDICAL_RECORDS_DB_USER": "medflow_medical_records",
+        "MEDICAL_RECORDS_SERVICE_PORT": "8085"
+      },
+      "secrets": [
+        {
+          "source": "medical_records-app",
+          "target": "MEDICAL_RECORDS_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "medical-records-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "lab-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "lab-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8086",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "LAB_DB_URL": "jdbc:postgresql://lab-db:5432/medflow_lab",
+        "LAB_DB_USER": "medflow_lab",
+        "LAB_SERVICE_PORT": "8086"
+      },
+      "secrets": [
+        {
+          "source": "lab-app",
+          "target": "LAB_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "lab-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "prescription-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "prescription-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8087",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "PRESCRIPTION_DB_URL": "jdbc:postgresql://prescription-db:5432/medflow_prescription",
+        "PRESCRIPTION_DB_USER": "medflow_prescription",
+        "PRESCRIPTION_SERVICE_PORT": "8087"
+      },
+      "secrets": [
+        {
+          "source": "prescription-app",
+          "target": "PRESCRIPTION_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "prescription-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "pharmacy-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "pharmacy-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8088",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "PHARMACY_DB_URL": "jdbc:postgresql://pharmacy-db:5432/medflow_pharmacy",
+        "PHARMACY_DB_USER": "medflow_pharmacy",
+        "PHARMACY_SERVICE_PORT": "8088"
+      },
+      "secrets": [
+        {
+          "source": "pharmacy-app",
+          "target": "PHARMACY_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "pharmacy-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "nutrition-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "nutrition-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8089",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "NUTRITION_DB_URL": "jdbc:postgresql://nutrition-db:5432/medflow_nutrition",
+        "NUTRITION_DB_USER": "medflow_nutrition",
+        "NUTRITION_SERVICE_PORT": "8089"
+      },
+      "secrets": [
+        {
+          "source": "nutrition-app",
+          "target": "NUTRITION_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "nutrition-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "billing-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "billing-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8090",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "BILLING_DB_URL": "jdbc:postgresql://billing-db:5432/medflow_billing",
+        "BILLING_DB_USER": "medflow_billing",
+        "BILLING_SERVICE_PORT": "8090"
+      },
+      "secrets": [
+        {
+          "source": "billing-app",
+          "target": "BILLING_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "billing-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "emergency-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "emergency-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8091",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "EMERGENCY_DB_URL": "jdbc:postgresql://emergency-db:5432/medflow_emergency",
+        "EMERGENCY_DB_USER": "medflow_emergency",
+        "EMERGENCY_SERVICE_PORT": "8091"
+      },
+      "secrets": [
+        {
+          "source": "emergency-app",
+          "target": "EMERGENCY_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "emergency-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "notification-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "notification-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8092",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1",
+        "NOTIFICATION_DB_URL": "jdbc:postgresql://notification-db:5432/medflow_notification",
+        "NOTIFICATION_DB_USER": "medflow_notification",
+        "NOTIFICATION_SERVICE_PORT": "8092"
+      },
+      "secrets": [
+        {
+          "source": "notification-app",
+          "target": "NOTIFICATION_DB_PASSWORD"
+        },
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        },
+        "notification-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "ai-service": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "ai-service"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8093",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1"
+      },
+      "secrets": [
+        {
+          "source": "jwt",
+          "target": "JWT_SECRET"
+        }
+      ],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      }
+    },
+    "api-gateway": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.backend",
+        "args": {
+          "SERVICE": "api-gateway"
+        }
+      },
+      "networks": [
+        "medflow"
+      ],
+      "environment": {
+        "SERVER_PORT": "8080",
+        "EUREKA_SERVER_URL": "http://discovery-server:8761/eureka",
+        "EUREKA_INSTANCE_PREFER_IP_ADDRESS": "true",
+        "SPRING_CONFIG_IMPORT": "optional:configtree:/run/secrets/",
+        "API_GATEWAY_URL": "http://api-gateway:8080",
+        "FRONTEND_URL": "http://localhost:15173",
+        "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE": "4",
+        "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE": "1"
+      },
+      "secrets": [],
+      "depends_on": {
+        "discovery-server": {
+          "condition": "service_started"
+        }
+      },
+      "deploy": {
+        "resources": {
+          "limits": {
+            "memory": "512M"
+          }
+        }
+      },
+      "ports": [
+        "127.0.0.1:18080:8080"
+      ]
+    },
+    "frontend": {
+      "build": {
+        "context": "..",
+        "dockerfile": "deploy/Dockerfile.frontend",
+        "args": {
+          "VITE_API_URL": "http://localhost:18080"
+        }
+      },
+      "ports": [
+        "127.0.0.1:15173:80"
+      ],
+      "networks": [
+        "medflow"
+      ],
+      "depends_on": [
+        "api-gateway"
+      ]
+    }
+  },
+  "volumes": {
+    "auth-data": {},
+    "patient-data": {},
+    "doctor-data": {},
+    "appointment-data": {},
+    "medical_records-data": {},
+    "lab-data": {},
+    "prescription-data": {},
+    "pharmacy-data": {},
+    "nutrition-data": {},
+    "billing-data": {},
+    "emergency-data": {},
+    "notification-data": {}
+  },
+  "networks": {
+    "medflow": {}
+  },
+  "secrets": {
+    "jwt": {
+      "environment": "DOCKER_JWT_SECRET"
+    },
+    "bootstrap": {
+      "environment": "DOCKER_BOOTSTRAP_PASSWORD"
+    },
+    "auth-app": {
+      "environment": "DOCKER_AUTH_APP_PASSWORD"
+    },
+    "auth-admin": {
+      "environment": "DOCKER_AUTH_ADMIN_PASSWORD"
+    },
+    "patient-app": {
+      "environment": "DOCKER_PATIENT_APP_PASSWORD"
+    },
+    "patient-admin": {
+      "environment": "DOCKER_PATIENT_ADMIN_PASSWORD"
+    },
+    "doctor-app": {
+      "environment": "DOCKER_DOCTOR_APP_PASSWORD"
+    },
+    "doctor-admin": {
+      "environment": "DOCKER_DOCTOR_ADMIN_PASSWORD"
+    },
+    "appointment-app": {
+      "environment": "DOCKER_APPOINTMENT_APP_PASSWORD"
+    },
+    "appointment-admin": {
+      "environment": "DOCKER_APPOINTMENT_ADMIN_PASSWORD"
+    },
+    "medical_records-app": {
+      "environment": "DOCKER_MEDICAL_RECORDS_APP_PASSWORD"
+    },
+    "medical_records-admin": {
+      "environment": "DOCKER_MEDICAL_RECORDS_ADMIN_PASSWORD"
+    },
+    "lab-app": {
+      "environment": "DOCKER_LAB_APP_PASSWORD"
+    },
+    "lab-admin": {
+      "environment": "DOCKER_LAB_ADMIN_PASSWORD"
+    },
+    "prescription-app": {
+      "environment": "DOCKER_PRESCRIPTION_APP_PASSWORD"
+    },
+    "prescription-admin": {
+      "environment": "DOCKER_PRESCRIPTION_ADMIN_PASSWORD"
+    },
+    "pharmacy-app": {
+      "environment": "DOCKER_PHARMACY_APP_PASSWORD"
+    },
+    "pharmacy-admin": {
+      "environment": "DOCKER_PHARMACY_ADMIN_PASSWORD"
+    },
+    "nutrition-app": {
+      "environment": "DOCKER_NUTRITION_APP_PASSWORD"
+    },
+    "nutrition-admin": {
+      "environment": "DOCKER_NUTRITION_ADMIN_PASSWORD"
+    },
+    "billing-app": {
+      "environment": "DOCKER_BILLING_APP_PASSWORD"
+    },
+    "billing-admin": {
+      "environment": "DOCKER_BILLING_ADMIN_PASSWORD"
+    },
+    "emergency-app": {
+      "environment": "DOCKER_EMERGENCY_APP_PASSWORD"
+    },
+    "emergency-admin": {
+      "environment": "DOCKER_EMERGENCY_ADMIN_PASSWORD"
+    },
+    "notification-app": {
+      "environment": "DOCKER_NOTIFICATION_APP_PASSWORD"
+    },
+    "notification-admin": {
+      "environment": "DOCKER_NOTIFICATION_ADMIN_PASSWORD"
+    }
+  }
+}
